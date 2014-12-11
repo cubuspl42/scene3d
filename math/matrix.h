@@ -1,5 +1,4 @@
 #pragma once
-
 #include "vector.h"
 
 #include <cmath>
@@ -9,9 +8,15 @@
 
 template<size_t N>
 struct Matrix {
-    float elements[N][N] = {{0}};
+    float elements[N][N];
     
-    Matrix() = default;
+	Matrix() {
+		for(size_t i = 0; i < N; ++i) {
+			for(size_t j = 0; j < N; ++j) {
+				elements[i][j] = 0.0f;
+			}
+		}
+	}
     Matrix(std::initializer_list<std::initializer_list<float>> rows) {
         size_t i = 0, j = 0;
         assert(rows.size() == N);
@@ -68,6 +73,16 @@ inline Matrix4 make_translate_matrix(Vector4 t) {
         {0, 0, 0, 1  }
     };
 }
+
+inline Matrix4 make_scale_matrix(Vector4 s) {
+	return{
+			{ s.x, 0,   0,   0   },
+			{ 0,   s.y, 0,   0   },
+			{ 0,   0,   s.z, 0   },
+			{ 0,   0,   0,   s.w }
+	};
+}
+
 
 inline Matrix4 make_perspective_matrix(float S, float zNear, float zFar) {
     const float N = zNear, F = zFar;

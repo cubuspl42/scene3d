@@ -14,6 +14,7 @@ set(SOURCES
     main.cpp
 )
 
+add_definitions(-D_USE_MATH_DEFINES)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/Modules" ${CMAKE_MODULE_PATH})

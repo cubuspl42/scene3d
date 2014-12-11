@@ -5,22 +5,44 @@
 
 #include <SFML/Graphics.hpp>
 
+#define _CRT_MATH_DEFINES
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <cmath>
+#include <fstream>
 #include <vector>
 
 struct Triangle {
     inline Triangle() {}
     Vector4 vertices[3];
-    sf::Color colors[3];
+	sf::Color color;
 };
+
+std::vector<Triangle> read_triangles(const char *filename, sf::Color color) {
+	std::vector<Triangle> ret;
+	std::ifstream file(filename, std::ios::in | std::ios::binary);
+	assert(file.good());
+	unsigned num_triangles = 0;
+	ret.reserve(num_triangles);
+	file.read((char*)&num_triangles, sizeof(num_triangles));
+	for (size_t i = 0; i < num_triangles; ++i) {
+		Triangle t;
+		t.color = color;
+		file.read((char*)&t.vertices[0], 3 * sizeof(float));
+		file.read((char*)&t.vertices[1], 3 * sizeof(float));
+		file.read((char*)&t.vertices[2], 3 * sizeof(float));
+		assert(file.good());
+		ret.push_back(t);
+	}
+	return ret;
+}
 
 void add_shadows(const std::vector<Triangle> &triangles, std::vector<Triangle> &triangles_shadows,
                  Vector4 light_source, sf::Color shadow_color) {
     for(const Triangle &t : triangles) {
         Triangle t_shadow;
-        t_shadow.colors[0] = t_shadow.colors[1] = t_shadow.colors[2] = shadow_color;
+        t_shadow.color = shadow_color;
         for(size_t i = 0; i < 3; ++i) {
             Vector4 v = t.vertices[i];
             Vector4 l_v = v - light_source;
@@ -50,7 +72,7 @@ void perform_perspective_divide(std::vector<Triangle> &triangles) {
 }
 
 void perform_culling(std::vector<Triangle> &triangles) {
-    for(auto it = triangles.begin(); it != triangles.end(); ++it) {
+    for(auto it = triangles.begin(); it != triangles.end();) {
         Triangle &t = *it;
         size_t num_invisible_vertices = 0;
         for(Vector4 v : t.vertices) {
@@ -62,10 +84,8 @@ void perform_culling(std::vector<Triangle> &triangles) {
         Vector4 a = t.vertices[1] - t.vertices[0];
         Vector4 b = t.vertices[2] - t.vertices[1];
         if(num_invisible_vertices == 3 || a.cross(b).z < 0) { // If all are outside the area, or the backside is seen
-            std::swap(t, triangles.back());
-            triangles.pop_back();
-            --it;
-        }
+			it = triangles.erase(it);
+		} else ++it;
     }
 }
 
@@ -93,80 +113,32 @@ void sort_triangles(std::vector<Triangle> &triangles)
     });
 }
 
-void sfml_draw_triangles(sf::RenderTarget &target, const std::vector<Triangle> &triangles)
+void sfml_draw_triangles(sf::RenderTarget &target, const std::vector<Triangle> &triangles, bool outline)
 {
-    std::vector<sf::Vertex> vertices;
-    vertices.reserve(triangles.size()*3);
+	sf::ConvexShape convex;
+	convex.setPointCount(3);
+	if (outline) {
+		convex.setOutlineColor(sf::Color::Yellow);
+		convex.setOutlineThickness(1);
+	}
     for(const Triangle &t : triangles) {
-        for(size_t i = 0; i < 3; ++i) {
-            Vector4 v = t.vertices[i];
-            sf::Vertex vertex;
-            vertex.position = {v.x, v.y};
-            vertex.color = t.colors[i];
-            vertices.push_back(vertex);
-        }
+		convex.setFillColor(t.color);
+		for (size_t i = 0; i < 3; ++i)
+			convex.setPoint(i, { t.vertices[i].x, t.vertices[i].y });
+		target.draw(convex);
     }
-    target.draw(vertices.data(), vertices.size(), sf::Triangles);
 }
 
 int main(int, char const**)
 {
-    sf::RenderWindow window(sf::VideoMode(640, 640), EXECUTABLE_NAME, sf::Style::Close);
+	sf::RenderWindow window(sf::VideoMode(1024, 1024), EXECUTABLE_NAME, sf::Style::Close);
     window.setView(sf::View(sf::FloatRect(-1,-1,2,2)));
     
-    float alpha = 0;
-    const float delta = 0.1;
-    
-    static const float cube_vertices[] = {
-        -1.0f,-1.0f,-1.0f,
-        -1.0f,-1.0f, 1.0f,
-        -1.0f, 1.0f, 1.0f,
-        1.0f, 1.0f,-1.0f,
-        -1.0f,-1.0f,-1.0f,
-        -1.0f, 1.0f,-1.0f,
-        1.0f,-1.0f, 1.0f,
-        -1.0f,-1.0f,-1.0f,
-        1.0f,-1.0f,-1.0f,
-        1.0f, 1.0f,-1.0f,
-        1.0f,-1.0f,-1.0f,
-        -1.0f,-1.0f,-1.0f,
-        -1.0f,-1.0f,-1.0f,
-        -1.0f, 1.0f, 1.0f,
-        -1.0f, 1.0f,-1.0f,
-        1.0f,-1.0f, 1.0f,
-        -1.0f,-1.0f, 1.0f,
-        -1.0f,-1.0f,-1.0f,
-        -1.0f, 1.0f, 1.0f,
-        -1.0f,-1.0f, 1.0f,
-        1.0f,-1.0f, 1.0f,
-        1.0f, 1.0f, 1.0f,
-        1.0f,-1.0f,-1.0f,
-        1.0f, 1.0f,-1.0f,
-        1.0f,-1.0f,-1.0f,
-        1.0f, 1.0f, 1.0f,
-        1.0f,-1.0f, 1.0f,
-        1.0f, 1.0f, 1.0f,
-        1.0f, 1.0f,-1.0f,
-        -1.0f, 1.0f,-1.0f,
-        1.0f, 1.0f, 1.0f,
-        -1.0f, 1.0f,-1.0f,
-        -1.0f, 1.0f, 1.0f,
-        1.0f, 1.0f, 1.0f,
-        -1.0f, 1.0f, 1.0f,
-        1.0f,-1.0f, 1.0f
-    };
-    
-    std::vector<Triangle> triangles;
-    for(size_t i = 0; i < sizeof(cube_vertices)/sizeof(cube_vertices[0]); i += 9) {
-        Triangle t;
-        for(size_t j = 0; j < 3; ++j) {
-            t.vertices[j] = { cube_vertices[i+j*3], cube_vertices[i+j*3+1], cube_vertices[i+j*3+2] };
-            t.colors[j].r = rand()%255;
-            t.colors[j].g = rand()%255;
-            t.colors[j].b = rand()%255;
-        }
-        triangles.push_back(t);
-    }
+    float alpha = (float)M_PI_2;
+    const float delta = 0.1f;
+
+	const sf::Color pg_logo_color = sf::Color(11, 51, 94);
+	std::vector<Triangle> triangles = read_triangles("pg.bin", pg_logo_color);
     
     while (window.isOpen())
     {
@@ -185,23 +157,19 @@ int main(int, char const**)
         const float S = 2;
         const float N = 1;
         const float F = 128;
-        const float r = 10;
+        const float r = 20;
         
-        Matrix4 model = make_translate_matrix({0,-1,0});
-        
-        Vector4 eye = {r*(float)cos(alpha), -4, r*(float)sin(alpha)};
-        Vector4 center = {0, 0, 0};
+        Vector4 eye = {r*(float)cos(alpha), -8, r*(float)sin(alpha)};
+        Vector4 center = {0, -2, 0};
         Matrix4 view = make_lookat_matrix(eye, center);
         Matrix4 projection =  make_perspective_matrix(S, N, F);
         Matrix4 vp = projection * view;
 
         std::vector<Triangle> transformed_triangles = triangles;
-        transform_triangles(transformed_triangles, model);
         
         const sf::Color shadow_color = sf::Color(60, 60, 60);
-        
         std::vector<Triangle> triangles_shadows;
-        const Vector4 light_source = {-8, -8, -8};
+        const Vector4 light_source = {-8, -16, 16};
         add_shadows(transformed_triangles, triangles_shadows, light_source, shadow_color);
         
         transform_triangles(transformed_triangles, vp);
@@ -209,14 +177,15 @@ int main(int, char const**)
         perform_perspective_divide(transformed_triangles);
         perform_perspective_divide(triangles_shadows);
         
-        perform_culling(transformed_triangles);
+		//perform_culling(transformed_triangles);
         perform_culling(triangles_shadows);
         
         //sort_triangles(transformed_triangles);
-        
+      
         window.clear(sf::Color(140, 140, 140));
-        sfml_draw_triangles(window, triangles_shadows);
-        sfml_draw_triangles(window, transformed_triangles);
+		bool outline = false;
+        sfml_draw_triangles(window, triangles_shadows, false);
+		sfml_draw_triangles(window, transformed_triangles, outline);
         window.display();
         sf::sleep(sf::milliseconds(16));
     }
