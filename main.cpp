@@ -113,14 +113,10 @@ void sort_triangles(std::vector<Triangle> &triangles)
     });
 }
 
-void sfml_draw_triangles(sf::RenderTarget &target, const std::vector<Triangle> &triangles, bool outline)
+void sfml_draw_triangles(sf::RenderTarget &target, const std::vector<Triangle> &triangles)
 {
 	sf::ConvexShape convex;
 	convex.setPointCount(3);
-	if (outline) {
-		convex.setOutlineColor(sf::Color::Yellow);
-		convex.setOutlineThickness(1);
-	}
     for(const Triangle &t : triangles) {
 		convex.setFillColor(t.color);
 		for (size_t i = 0; i < 3; ++i)
@@ -131,11 +127,13 @@ void sfml_draw_triangles(sf::RenderTarget &target, const std::vector<Triangle> &
 
 int main(int, char const**)
 {
-	sf::RenderWindow window(sf::VideoMode(1024, 1024), EXECUTABLE_NAME, sf::Style::Close);
+    sf::ContextSettings settings;
+    settings.antialiasingLevel = 8;
+	sf::RenderWindow window(sf::VideoMode(800, 800), EXECUTABLE_NAME, sf::Style::Close, settings);
+    window.setVerticalSyncEnabled(true);
     window.setView(sf::View(sf::FloatRect(-1,-1,2,2)));
     
-    float alpha = (float)M_PI_2;
-    const float delta = 0.1f;
+    float alpha = 0.0f;
 
 	const sf::Color pg_logo_color = sf::Color(11, 51, 94);
 	std::vector<Triangle> triangles = read_triangles("pg.bin", pg_logo_color);
@@ -146,23 +144,27 @@ int main(int, char const**)
         while (window.pollEvent(event)) {
             if (event.type == sf::Event::Closed)
                 window.close();
-            if (event.type == sf::Event::KeyPressed) {
-                if(event.key.code == sf::Keyboard::Right)
-                    alpha += delta;
-                else if(event.key.code == sf::Keyboard::Left)
-                    alpha -= delta;
-            }
         }
         
+        const float delta_value = 1.0f/20;
+        float delta = 0.0f;
+        if(sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
+            delta += delta_value;
+        if(sf::Keyboard::isKeyPressed(sf::Keyboard::Right))
+            delta -= delta_value;
+        
+        alpha += delta;
+        
         const float S = 2;
-        const float N = 1;
-        const float F = 128;
+        //const float N = 1;
+        //const float F = 128;
         const float r = 20;
         
-        Vector4 eye = {r*(float)cos(alpha), -8, r*(float)sin(alpha)};
+        Vector4 eye = {r*(float)-sin(alpha), -8, r*(float)cos(alpha)};
         Vector4 center = {0, -2, 0};
         Matrix4 view = make_lookat_matrix(eye, center);
-        Matrix4 projection =  make_perspective_matrix(S, N, F);
+        //Matrix4 projection =  make_perspective_matrix(S, N, F);
+        Matrix4 projection = make_simple_perspective_matrix(S);
         Matrix4 vp = projection * view;
 
         std::vector<Triangle> transformed_triangles = triangles;
@@ -183,11 +185,10 @@ int main(int, char const**)
         //sort_triangles(transformed_triangles);
       
         window.clear(sf::Color(140, 140, 140));
-		bool outline = false;
-        sfml_draw_triangles(window, triangles_shadows, false);
-		sfml_draw_triangles(window, transformed_triangles, outline);
+        sfml_draw_triangles(window, triangles_shadows);
+		sfml_draw_triangles(window, transformed_triangles);
         window.display();
-        sf::sleep(sf::milliseconds(16));
+        //sf::sleep(sf::milliseconds(16));
     }
     
     return EXIT_SUCCESS;

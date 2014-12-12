@@ -90,19 +90,28 @@ inline Matrix4 make_perspective_matrix(float S, float zNear, float zFar) {
         {S, 0,  0,           0          },
         {0, S,  0,           0          },
         {0, 0,  (F+N)/(N-F), 2*N*F/(N-F)},
-        {0, 0,  -1,          0          }
+        {0, 0, -1,           0          }
+    };
+}
+
+inline Matrix4 make_simple_perspective_matrix(float S) {
+    return {
+        {S, 0,  0,  0},
+        {0, S,  0,  0},
+        {0, 0,  1,  0},
+        {0, 0, -1,  0}
     };
 }
 
 inline Matrix4 make_lookat_matrix(const Vector4 &eye, const Vector4 &center) {
     Vector4 j {0, 1, 0};
-    const Vector4 k = (center - eye).normalized();
-    const Vector4 i = k.cross(j).normalized();
-    j = i.cross(k);
+    const Vector4 k = (eye - center).normalized();
+    const Vector4 i = j.cross(k).normalized();
+    j = k.cross(i);
     return {
         { i.x,  i.y,  i.z, -i.dot(eye)},
         { j.x,  j.y,  j.z, -j.dot(eye)},
-        {-k.x, -k.y, -k.z,  k.dot(eye)},
+        { k.x,  k.y,  k.z, -k.dot(eye)},
         { 0,    0,    0,    1         }
     };
 }
